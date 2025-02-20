@@ -3,7 +3,15 @@ const axios = require("axios");
 const cors = require("cors");
 
 const cors = require("cors");
-app.use(cors()); 
+
+const corsOptions = {
+  origin: "https://genomevisualizer-frontend.vercel.app", // Allow only your frontend
+  methods: "GET,POST",
+  allowedHeaders: "Content-Type",
+};
+
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
