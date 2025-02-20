@@ -38,6 +38,16 @@ app.get("/api/convert-name-to-id", async (req, res) => {
 });
 
 
+const express = require("express");
+const axios = require("axios");
+const cors = require("cors");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const PORT = process.env.PORT || 3001;
+
 // Fetch genome release dates
 app.get("/api/get-release-dates", async (req, res) => {
     const { taxon_id } = req.query;
@@ -60,6 +70,8 @@ app.get("/api/get-release-dates", async (req, res) => {
         const summaryData = summaryResponse.data;
 
         // **Step 3: Extract release dates**
+        console.log("🔹 Raw Summary Data:", JSON.stringify(summaryData, null, 2)); // Debugging
+
         const releaseDates = Object.values(summaryData.result)
             .filter(entry => entry.create_date) // Ensure there's a valid date
             .map(entry => ({
@@ -67,12 +79,19 @@ app.get("/api/get-release-dates", async (req, res) => {
                 count: 1,
             }));
 
+        console.log("✅ Extracted Release Dates:", releaseDates); // Debugging
+
         res.json({ release_dates: releaseDates });
     } catch (error) {
-        console.error("Error fetching genome data:", error);
+        console.error("❌ Error fetching genome data:", error);
         res.status(500).json({ error: "Server error" });
     }
 });
+
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
+
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
