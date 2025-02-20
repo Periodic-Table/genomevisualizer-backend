@@ -37,38 +37,45 @@ app.get("/api/convert-name-to-id", async (req, res) => {
   }
 });
 
+
+// Fetch genome release dates
 app.get("/api/get-release-dates", async (req, res) => {
     const { taxon_id } = req.query;
     if (!taxon_id) return res.status(400).json({ error: "Missing taxon ID" });
 
     try {
-        const response = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=genome&term=${taxon_id}[Taxonomy ID]&retmode=json`);
-        const data = await response.json();
+        // **Step 1: Fetch genome assembly IDs for the organism**
+        const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=assembly&term=txid${taxon_id}[Organism]&retmode=json&retmax=100`;
+        const searchResponse = await axios.get(searchUrl);
+        const searchData = searchResponse.data;
 
-        if (!data.esearchresult || !data.esearchresult.idlist.length) {
-            return res.status(404).json({ error: "No genome data found" });
+        if (!searchData.esearchresult || !searchData.esearchresult.idlist.length) {
+            return res.status(404).json({ error: "No genome assemblies found" });
         }
 
-        const genomeIds = data.esearchresult.idlist;
+        // **Step 2: Get summaries of those genome assemblies**
+        const idList = searchData.esearchresult.idlist.join(",");
+        const summaryUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=assembly&id=${idList}&retmode=json`;
+        const summaryResponse = await axios.get(summaryUrl);
+        const summaryData = summaryResponse.data;
 
-        const genomeDataPromises = genomeIds.map(async (id) => {
-            const summaryResponse = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=genome&id=${id}&retmode=json`);
-            const summaryData = await summaryResponse.json();
+        // **Step 3: Extract release dates**
+        const releaseDates = Object.values(summaryData.result)
+            .filter(entry => entry.create_date) // Ensure there's a valid date
+            .map(entry => ({
+                year: new Date(entry.create_date).getFullYear(),
+                count: 1,
+            }));
 
-            const genomeInfo = summaryData.result[id];
-
-            return {
-                year: genomeInfo?.create_date ? new Date(genomeInfo.create_date).getFullYear() : null,
-                count: 1
-            };
-        });
-
-        const releaseDates = await Promise.all(genomeDataPromises);
         res.json({ release_dates: releaseDates });
     } catch (error) {
         console.error("Error fetching genome data:", error);
         res.status(500).json({ error: "Server error" });
     }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
 
 
