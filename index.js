@@ -16,20 +16,21 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
 
-// Convert organism name to taxon ID
+
 app.get("/api/convert-name-to-id", async (req, res) => {
-    const { name } = req.query;
-    if (!name) return res.status(400).json({ error: "Missing organism name" });
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: "Missing organism name" });
 
-    try {
-        const response = await axios.get(`https://api.ncbi.nlm.nih.gov/taxon/v1/search?name=${encodeURIComponent(name)}`);
-        const taxonId = response.data.results[0]?.tax_id;
-        if (!taxonId) throw new Error("Taxon ID not found");
+  try {
+    const response = await fetch(`https://api.ncbi.nlm.nih.gov/datasets/v1/taxon/name/${name}`);
+    const data = await response.json();
 
-        res.json({ taxon_id: taxonId });
-    } catch (error) {
-        res.status(500).json({ error: "Error fetching taxon ID" });
-    }
+    if (!data.taxon_id) return res.status(404).json({ error: "Organism not found" });
+
+    res.json({ taxon_id: data.taxon_id });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 // Fetch genome release dates
